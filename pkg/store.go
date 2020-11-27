@@ -31,14 +31,14 @@ func NewStore(indexer Indexer, indexPath string, writer io.Writer) *Store {
 	}
 }
 
-func (s *Store) SaveBookmark(bookmarkName, url string, searchTerms []string) error {
+func (s *Store) SaveBookmark(bookmarkName, url string, tags []string) error {
 
-	// if the bookmark name isn't in the search terms, add it in so it can be searched for
-	if checkIfBookmarkNameIsInSearchTerms(searchTerms, bookmarkName) == false {
-		searchTerms = append(searchTerms, bookmarkName)
+	// if the bookmark name isn't in the tags, add it in so it can be searched for
+	if checkIfBookmarkNameIsInTags(tags, bookmarkName) == false {
+		tags = append(tags, bookmarkName)
 	}
 
-	err := s.addDocument(context.TODO(), bookmarkName, url, searchTerms)
+	err := s.addDocument(context.TODO(), bookmarkName, url, tags)
 	if err != nil {
 		return errors.Wrap(err, "error storing bookmark document")
 	}
@@ -46,8 +46,8 @@ func (s *Store) SaveBookmark(bookmarkName, url string, searchTerms []string) err
 	return nil
 }
 
-func checkIfBookmarkNameIsInSearchTerms(searchTerms []string, bookmarkName string) bool {
-	for _, item := range searchTerms {
+func checkIfBookmarkNameIsInTags(tags []string, bookmarkName string) bool {
+	for _, item := range tags {
 		if item == bookmarkName {
 			return true
 		}
@@ -55,12 +55,12 @@ func checkIfBookmarkNameIsInSearchTerms(searchTerms []string, bookmarkName strin
 	return false
 }
 
-func (s *Store) addDocument(ctx context.Context, bookmarkName, url string, searchTerms []string) error {
+func (s *Store) addDocument(ctx context.Context, bookmarkName, url string, tags []string) error {
 	_, err := s.indexer.PutDoc(ctx, firesearch.PutAutocompleteDocRequest{
 		IndexPath: s.indexPath,
 		Doc: firesearch.AutocompleteDoc{
 			ID:   bookmarkName,
-			Text: strings.Join(searchTerms, " "),
+			Text: strings.Join(tags, " "),
 			Fields: []firesearch.Field{
 				{
 					Key:   "url",
