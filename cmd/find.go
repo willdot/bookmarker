@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/willdot/bookmarker/pkg"
@@ -26,10 +28,11 @@ func findBookmark(args []string) error {
 
 	searchTerm := args[0]
 
-	store, err := pkg.NewStore()
+	firesearchIndexer, err := createFiresearch(indexPath, endpoint, secret)
 	if err != nil {
-		return errors.Wrap(err, "failed to create store")
+		return errors.Wrap(err, "failed to create firesearch")
 	}
+	store := pkg.NewStore(firesearchIndexer, indexPath, os.Stdout)
 
 	return store.FindBookmark(searchTerm)
 }

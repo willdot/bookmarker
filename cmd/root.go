@@ -1,9 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 
+	"github.com/pacedotdev/firesearch-sdk/clients/go/firesearch"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	homedir "github.com/mitchellh/go-homedir"
@@ -27,12 +30,20 @@ func Execute() {
 	}
 }
 
+var endpoint string
+var indexPath string
+var secret string
+
 func init() {
 	cobra.OnInitialize(initConfig)
 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
+
+	addCmd.Flags().StringVar(&endpoint, "endpoint", "http://localhost:8888/api", "the Firesearch endpoint address")
+	addCmd.Flags().StringVar(&indexPath, "index", "bookmarks", "the index path to use for Firesearch index")
+	addCmd.Flags().StringVar(&secret, "secret", "", "the secret API token for Firesearch")
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.bookmarker.yaml)")
 
@@ -65,4 +76,32 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
 	}
+}
+
+func createFiresearch(indexPath, endpoint, secret string) (*firesearch.AutocompleteService, error) {
+	client := firesearch.NewClient(endpoint, secret)
+	autocompleteService := firesearch.NewAutocompleteService(client)
+	err := createIndex(context.TODO(), autocompleteService, indexPath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error creating index: %s", indexPath)
+	}
+
+	return autocompleteService, nil
+}
+
+func createIndex(ctx context.Context, service *firesearch.AutocompleteService, index string) error {
+	createAutocompleteIndexReq := firesearch.CreateAutocompleteIndexRequest{
+		Index: firesearch.AutocompleteIndex{
+			IndexPath:     index,
+			Name:          "Bookmark autocomplete index",
+			CaseSensitive: false,
+		},
+	}
+
+	_, err := service.CreateIndex(ctx, createAutocompleteIndexReq)
+	if err != nil {
+		return errors.Wrap(err, "firesearch: IndexService.CreateIndex")
+	}
+
+	return nil
 }

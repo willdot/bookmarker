@@ -3,7 +3,7 @@ package pkg
 import (
 	"context"
 	"fmt"
-	"os"
+	"io"
 	"strings"
 	"text/tabwriter"
 
@@ -12,43 +12,23 @@ import (
 	"github.com/pacedotdev/firesearch-sdk/clients/go/firesearch"
 )
 
-const (
-	endpoint  = "http://localhost:8888/api"
-	secret    = "firesearch-playground"
-	indexPath = "bookmarks"
-)
-
 type Store struct {
-	autocompleteService *firesearch.AutocompleteService
-	indexPath           string
+	indexPath string
+	indexer   Indexer
+	writer    io.Writer
 }
 
-func NewStore() (*Store, error) {
+type Indexer interface {
+	PutDoc(ctx context.Context, r firesearch.PutAutocompleteDocRequest) (*firesearch.PutAutocompleteDocResponse, error)
+	Complete(ctx context.Context, r firesearch.CompleteRequest) (*firesearch.CompleteResponse, error)
+}
 
-	client := firesearch.NewClient(endpoint, secret)
-	autocompleteService := firesearch.NewAutocompleteService(client)
-	createIndex(context.TODO(), autocompleteService, indexPath)
-
+func NewStore(indexer Indexer, indexPath string, writer io.Writer) *Store {
 	return &Store{
-		autocompleteService: autocompleteService,
-		indexPath:           indexPath,
-	}, nil
-}
-
-func createIndex(ctx context.Context, service *firesearch.AutocompleteService, index string) error {
-	createAutocompleteIndexReq := firesearch.CreateAutocompleteIndexRequest{
-		Index: firesearch.AutocompleteIndex{
-			IndexPath:     index,
-			Name:          "Bookmark autocomplete index",
-			CaseSensitive: false,
-		},
+		indexer:   indexer,
+		indexPath: indexPath,
+		writer:    writer,
 	}
-	_, err := service.CreateIndex(ctx, createAutocompleteIndexReq)
-	if err != nil {
-		return errors.Wrap(err, "firesearch: IndexService.CreateIndex")
-	}
-
-	return nil
 }
 
 func (s *Store) SaveBookmark(bookmarkName, url string, searchTerms []string) error {
@@ -76,7 +56,7 @@ func checkIfBookmarkNameIsInSearchTerms(searchTerms []string, bookmarkName strin
 }
 
 func (s *Store) addDocument(ctx context.Context, bookmarkName, url string, searchTerms []string) error {
-	_, err := s.autocompleteService.PutDoc(ctx, firesearch.PutAutocompleteDocRequest{
+	_, err := s.indexer.PutDoc(ctx, firesearch.PutAutocompleteDocRequest{
 		IndexPath: s.indexPath,
 		Doc: firesearch.AutocompleteDoc{
 			ID:   bookmarkName,
@@ -90,7 +70,7 @@ func (s *Store) addDocument(ctx context.Context, bookmarkName, url string, searc
 		},
 	})
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error putting document in the indexer")
 	}
 
 	return nil
@@ -101,7 +81,7 @@ func (s *Store) FindBookmark(searchTerm string) error {
 }
 
 func (s *Store) getDocuments(ctx context.Context, searchTerm string) error {
-	res, err := s.autocompleteService.Complete(ctx, firesearch.CompleteRequest{
+	res, err := s.indexer.Complete(ctx, firesearch.CompleteRequest{
 		Query: firesearch.CompleteQuery{
 			IndexPath: s.indexPath,
 			Text:      searchTerm,
@@ -109,11 +89,16 @@ func (s *Store) getDocuments(ctx context.Context, searchTerm string) error {
 	})
 
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error calling complate on the indexer")
+	}
+
+	if len(res.Hits) == 0 {
+		fmt.Fprintf(s.writer, "no search result found for: %s\n", searchTerm)
+		return nil
 	}
 
 	w := new(tabwriter.Writer)
-	w.Init(os.Stdout, 0, 8, 0, '\t', 0)
+	w.Init(s.writer, 0, 8, 0, '\t', 0)
 	defer w.Flush()
 
 	fmt.Fprintln(w, "Name\tURL\t")

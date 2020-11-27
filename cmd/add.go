@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -29,10 +31,11 @@ func init() {
 }
 
 func saveBookmark(args []string) error {
-	store, err := pkg.NewStore()
+	firesearchIndexer, err := createFiresearch(indexPath, endpoint, secret)
 	if err != nil {
-		return errors.Wrap(err, "failed to create store")
+		return errors.Wrap(err, "failed to create firesearch")
 	}
+	store := pkg.NewStore(firesearchIndexer, indexPath, os.Stdout)
 
 	return store.SaveBookmark(bookmark, url, searchTerms)
 }
