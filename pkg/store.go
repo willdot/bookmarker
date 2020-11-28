@@ -12,17 +12,20 @@ import (
 	"github.com/pacedotdev/firesearch-sdk/clients/go/firesearch"
 )
 
+// Store handles interactions of putting and getting bookmarks from storage
 type Store struct {
 	indexPath string
 	indexer   Indexer
 	writer    io.Writer
 }
 
+// Indexer defines the functions required to interact with a store of documents
 type Indexer interface {
 	PutDoc(ctx context.Context, r firesearch.PutAutocompleteDocRequest) (*firesearch.PutAutocompleteDocResponse, error)
 	Complete(ctx context.Context, r firesearch.CompleteRequest) (*firesearch.CompleteResponse, error)
 }
 
+// NewStore returns a new store
 func NewStore(indexer Indexer, indexPath string, writer io.Writer) *Store {
 	return &Store{
 		indexer:   indexer,
@@ -31,8 +34,8 @@ func NewStore(indexer Indexer, indexPath string, writer io.Writer) *Store {
 	}
 }
 
+// SaveBookmark will save a new bookmark, or update an existing one with the given details
 func (s *Store) SaveBookmark(bookmarkName, url string, tags []string) error {
-
 	// if the bookmark name isn't in the tags, add it in so it can be searched for
 	if checkIfBookmarkNameIsInTags(tags, bookmarkName) == false {
 		tags = append(tags, bookmarkName)
@@ -76,6 +79,7 @@ func (s *Store) addDocument(ctx context.Context, bookmarkName, url string, tags 
 	return nil
 }
 
+// FindBookmark will attempt to search for a bookmark using the given search term and will print the results
 func (s *Store) FindBookmark(searchTerm string) error {
 	return s.getDocuments(context.TODO(), searchTerm)
 }
