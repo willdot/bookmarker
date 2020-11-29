@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"errors"
+
 	"github.com/spf13/cobra"
 )
 
@@ -36,6 +38,13 @@ func NewAddCommand(store Store) *cobra.Command {
 }
 
 func (r *addRunner) run(_ *cobra.Command, _ []string) error {
-	// TODO: validte flags
+	if r.url == "" {
+		return errors.New("url flag is required")
+	}
+
+	if r.bookmark == "" {
+		return errors.New("bookmark name is required")
+	}
+
 	return r.store.SaveBookmark(r.bookmark, r.url, r.tags)
 }
