@@ -21,7 +21,7 @@ TODO: Try this out using production Firesearch
 
 ### Add a bookmark
 `bookmarker add --url=github.com --name=github --tags="git, source control"`
-Note: The tags must be wrapped in `""` and comma separated.
+Note: The tags must be wrapped in `""` and comma separated and the name of the bookmark will also be stored as a tag.
 
 ### Find a bookmark
 `bookmarker find git`
