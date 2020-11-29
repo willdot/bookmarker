@@ -14,7 +14,7 @@ import (
 func main() {
 	env := getEnv()
 
-	firesearch, err := createFiresearch(env.endpoint, env.indexPath, env.secret)
+	firesearch, err := createFiresearch(env.indexPath, env.endpoint, env.secret)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create firesearch service: %s\n", err.Error())
 		os.Exit(1)
@@ -77,9 +77,6 @@ func getEnv() environment {
 	}
 
 	secret := os.Getenv("SECRET")
-
-	fmt.Println(endpoint)
-	fmt.Println(indexPath)
 
 	return environment{
 		indexPath: indexPath,
